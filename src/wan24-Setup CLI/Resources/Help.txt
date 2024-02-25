@@ -1,0 +1,54 @@
+wan24-Setup CLI (c) 2024 Andreas Zimmermann, wan24.de
+=====================================================
+
+Replace "installerPackage" with "dotnet tool run wan24setup", if you want to 
+use this CLI as .NET tool.
+
+Create a signature key and a signing request:
+
+	installerPackage -createKey --path [FOLDERNAME] --pwd [VARIABLE] (-tpm) --email [EMAIL]
+
+The given email address will be embedded into your signed key. Send the 
+created "public.ksr"" file with email to nd@wan24-office.de. The "private.key" 
+file is your secret signature key. You'll need the given password (and the 
+used TPM), if you want to use it.
+
+Create an installer package:
+
+	installerPackage --create [FILENAME] --path [FOLDERNAME] (--sign [KEYFILENAME] --signed [SIGNEDKEYFILENAME] --pwd [VARIABLE] (-tpm))
+
+The last line of the output to STDOUT is the uncompressed length in bytes.
+
+Extract an installer package:
+
+	installerPackage --extract [FILENAME] --path [FOLDERNAME]
+
+Install a package:
+
+	installerPackage --install [FILENAME] --path [FOLDERNAME] (-allowUnsigned)
+
+NOTE: [FILENAME] may also be a http(s) URI.
+
+Optional arguments:
+
+-v, -version
+	Display the version number and exit.
+
+-h, -help
+	Display this help and exit.
+
+--sign [KEYFILENAME]
+	Sign the package using a private signature key.
+
+--signed [SIGNEDKEYFILENAME]
+	Filename of your signed public signature key.
+
+--pwd [VARIABLE]
+	Specify the environment variable which contains the key for decrypting the 
+	private signature key.
+
+-tpm
+	Use the TPM to protect the encryption key.
+
+-allowUnsigned
+	Allowing running an unsigned setup.

@@ -1,0 +1,24 @@
+The private key suite will contain an asymmetric primary and a counter 
+signature key, using these algorithms:
+
+    - Primary: ECDSA
+    - Counter: CRYSTALS-Dilithium
+
+The private key suite will be encrypted with your given password using 
+Serpent-256-CBC (HMAC-SHA3-512 authenticated).
+
+Your given password will be stretched two times using
+
+    1. PBKDF#2 with 250.000 iterations and SHA3-384 hash
+    2. Argon2id with a memory limit of 46M
+
+Optional the final password will be a HMAC, which will be created using the 
+highest available TPM 2.0 HMAC algorithm.
+
+Your private key suite file will be written to the given filename. An 
+additional "[FILENAME].ksr" file contains a signature request for your 
+signature keys. Please send this KSR-file with email to 
+[link=mailto:nd@wan24-office.de]nd@wan24-office.de[/]. After your public 
+signature key was approved and signed, you'll get a signed public key back 
+with email, which you can then merge to your private key suite using the 
+"finalizeKey" CLI API method.

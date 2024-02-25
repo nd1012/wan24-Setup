@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>wan24.Setup.CLI</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>wan24SetupCli</AssemblyName>
+    <PackAsTool>False</PackAsTool>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wan24-Setup\wan24-Setup.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="wan24-CLI" Version="1.0.0" />
+    <PackageReference Include="wan24-Compression" Version="2.3.0" />
+    <PackageReference Include="wan24-Core" Version="2.8.0" />
+    <PackageReference Include="wan24-Crypto" Version="2.5.0" />
+    <PackageReference Include="wan24-Crypto-BC" Version="3.2.0" />
+    <PackageReference Include="wan24-Crypto-NaCl" Version="2.2.0" />
+    <PackageReference Include="wan24-Crypto-TPM" Version="2.2.0" />
+  </ItemGroup>
+
+</Project>
