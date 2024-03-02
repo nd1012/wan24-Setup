@@ -41,7 +41,7 @@ namespace wan24.Setup.CLI
             [Description("Path to the file which will contain the encrypted private key suite")]
             FileStream file,
 
-            [CliApi(Example = "alias@domain.com")]
+            [CliApi(Example = "alias@domain.tld")]
             [DisplayText("Email address")]
             [Description("Email address of the key suite owner")]
             [EmailAddress, StringLength(byte.MaxValue)]
@@ -61,7 +61,7 @@ namespace wan24.Setup.CLI
             )
         {
             Console.WriteLine($"Creating a private signature key suite (output to file \"{file.Name}\") for installer package signing.");
-            await InitCryptoAsync().DynamicContext();
+            await InitCryptoAsync(output: true, tpm: tpm).DynamicContext();
             await using (file.DynamicContext())
             {
                 // Email address should be lowercase
@@ -84,7 +84,7 @@ namespace wan24.Setup.CLI
                 options.AsymmetricKeyBits = AsymmetricDilithiumAlgorithm.Instance.AllowedKeySizes.Last();
                 Console.WriteLine($"Counter signature key: {AsymmetricHelper.GetAlgorithm(options.AsymmetricAlgorithm).DisplayName} (key size/ID {options.AsymmetricKeyBits})");
                 privateKeys.CounterSignatureKey = AsymmetricHelper.CreateSignatureKeyPair(options);
-                // Encrypt and write the private key suite
+                // Encrypt and store the private key suite
                 Console.WriteLine("Storing encrypted private key suite...");
                 CryptoOptions encryptionOptions = new CryptoOptions()
                     .WithEncryptionAlgorithm(EncryptionSerpent256CbcAlgorithm.ALGORITHM_NAME)
@@ -92,7 +92,7 @@ namespace wan24.Setup.CLI
                 Console.WriteLine($"Encryption algorithm: {EncryptionHelper.GetAlgorithm(encryptionOptions.Algorithm!).DisplayName} ({MacHelper.GetAlgorithm(encryptionOptions.MacAlgorithm!).DisplayName} authenticated)");
                 using SecureByteArrayStructSimple privateKeysData = new(privateKeys.Encrypt(finalPwd.Array, encryptionOptions));
                 await file.WriteAsync(privateKeysData.Array).DynamicContext();
-                // Create a KSR
+                // Create and store a KSR
                 Console.WriteLine("Creating key signature request...");
                 using AsymmetricPublicKeySigningRequest ksr = new(privateKeys.SignatureKey.PublicKey, new()
                 {
@@ -104,8 +104,7 @@ namespace wan24.Setup.CLI
                 }, KEY_PURPOSE);
                 ksr.SignRequest(privateKeys.SignatureKey);
                 FileStream ksrFile = FsHelper.CreateFileStream($"{file.Name}.ksr", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-                await using (ksrFile.DynamicContext())
-                    await ksrFile.WriteSerializedAsync(ksr).DynamicContext();
+                await using (ksrFile.DynamicContext()) await ksrFile.WriteSerializedAsync(ksr).DynamicContext();
                 Console.WriteLine("Done.");
             }
         }
@@ -128,21 +127,24 @@ namespace wan24.Setup.CLI
             FileStream file
             )
         {
-            await InitCryptoAsync().DynamicContext();
             await using (file.DynamicContext())
             {
                 Console.WriteLine("Printing signature key signing request...");
+                await InitCryptoAsync(output: true, rng: false, tpm: false, pki: false).DynamicContext();
                 using AsymmetricPublicKeySigningRequest ksr = await file.ReadSerializedAsync<AsymmetricPublicKeySigningRequest>().DynamicContext();
+                // Key
                 Console.WriteLine($"Key algorithm: {ksr.PublicKey.Algorithm.DisplayName} (key size/ID {ksr.PublicKey.Bits})");
                 Console.WriteLine($"Key ID: {Convert.ToBase64String(ksr.PublicKey.ID)}");
+                // Attributes
                 Console.WriteLine("Attributes:");
-                foreach (var kvp in ksr.Attributes)
-                    Console.WriteLine($"\t{kvp.Key} = {kvp.Value}");
+                foreach (var kvp in ksr.Attributes) Console.WriteLine($"\t{kvp.Key} = {kvp.Value}");
+                // Signature
                 Console.WriteLine("Signature:");
                 Console.WriteLine($"\tSigned: {ksr.Signature?.Signed.ToLocalTime()}");
                 Console.WriteLine($"\tHash algorithm: {ksr.Signature?.HashAlgorithm}");
                 Console.WriteLine($"\tSigner: {(ksr.Signature is null ? string.Empty : Convert.ToBase64String(ksr.Signature.Signer))}");
                 Console.WriteLine($"\tPurpose: {ksr.Signature?.Purpose}");
+                // Validation
                 int exitCode = 0;
                 try
                 {
@@ -197,15 +199,18 @@ namespace wan24.Setup.CLI
             )
         {
             Console.WriteLine("Processing KSR...");
-            await InitCryptoAsync().DynamicContext();
+            await InitCryptoAsync(output: true, tpm: false).DynamicContext();
             string ksrFileName = file.Name;
             try
             {
+                // Print the KSR irst
                 if (await PrintKsrAsync(file).DynamicContext() != 0) throw new CliArgException("KSR invalid", nameof(file));
                 file = FsHelper.CreateFileStream(ksrFileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                 using AsymmetricPublicKeySigningRequest ksr = await file.ReadSerializedAsync<AsymmetricPublicKeySigningRequest>().DynamicContext();
+                // Get the password
                 Console.WriteLine("Working on the password...");
                 using SecureByteArrayStructSimple pwd = new(await ReadPasswordAsync(pwdVar, output: true).DynamicContext());
+                // Load private signature keys
                 Console.WriteLine("Loading private keys...");
                 using SecureByteArrayStructSimple privateKeysData = new((int)privateKeys.Length);
                 await privateKeys.ReadAsync(privateKeysData.Memory).DynamicContext();
@@ -216,6 +221,7 @@ namespace wan24.Setup.CLI
                     privateKeysSuite.SignedPublicKey is not null && 
                     privateKeysSuite.SignedPublicCounterKey is not null
                     );
+                // Sign and store public signature key
                 Console.WriteLine("Signing public key...");
                 using AsymmetricSignedPublicKey publicKey = ksr.GetAsUnsignedKey();
                 publicKey.Sign(
